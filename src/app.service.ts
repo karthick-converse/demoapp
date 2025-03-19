@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entites/user.entity';
 import { Repository } from 'typeorm';
@@ -26,9 +26,14 @@ export class AppService {
   }
 
 catch(err){
-  console.log(err);
-  return err; 
-}
+
+    // Specific error handling
+      if (err.code === '23505') { // Unique constraint violation
+        throw new ConflictException('Email already exists!');
+      }
+      console.error(err);
+      throw new InternalServerErrorException('Something went wrong');
+    }
 }
 
 

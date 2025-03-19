@@ -4,6 +4,12 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { User } from './entites/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { ConflictException, InternalServerErrorException } from '@nestjs/common';
+import { mocked } from 'jest-mock'; // ✅ Important
+
+// ✅ Move jest.mock to TOP-LEVEL
+jest.mock('bcrypt');
+const bcryptMock = bcrypt as jest.Mocked<typeof bcrypt>;
 
 describe('AppService', () => {
   let service: AppService;
@@ -30,31 +36,48 @@ describe('AppService', () => {
 
     service = module.get<AppService>(AppService);
     userRepository = module.get<Repository<User>>(getRepositoryToken(User));
+
+    jest.clearAllMocks(); // Clean mocks
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
+  describe('createUser', () => {
+    const userData = { name: 'John', email: 'john@example.com', password: '1234' };
+    const res = { redirect: jest.fn() };
 
-  // Test for getHello()
-  describe('getHello', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      // ✅ Mock bcrypt.hash correctly
+      (mocked(bcrypt.hash) as any).mockResolvedValue('hashedPassword123');
+    });
+
     it('should create a user with hashed password and redirect', async () => {
-      const userData = { name: 'John', email: 'john@example.com', password: '1234' };
-      const res = { redirect: jest.fn() };
-      const hashedPassword = await bcrypt.hash(userData.password, 12);
-
+      const hashedPassword = 'hashedPassword123';
       mockUserRepo.save.mockResolvedValue({ id: 1, ...userData, password: hashedPassword });
 
       await service.createUser(userData, res);
 
+      expect(bcrypt.hash).toHaveBeenCalledWith(userData.password, 12);
       expect(mockUserRepo.save).toHaveBeenCalledWith({
         ...userData,
-        password: expect.any(String),
+        password: hashedPassword,
       });
       expect(res.redirect).toHaveBeenCalledWith('/users');
     });
-  });
 
+    it('should throw ConflictException if email already exists', async () => {
+      const error = { code: '23505' };
+      mockUserRepo.save.mockRejectedValue(error);
+
+      await expect(service.createUser(userData, res)).rejects.toThrow(ConflictException);
+    });
+
+    it('should throw InternalServerErrorException for other errors', async () => {
+      const error = { code: 'UNKNOWN_ERROR' };
+      mockUserRepo.save.mockRejectedValue(error);
+
+      await expect(service.createUser(userData, res)).rejects.toThrow(InternalServerErrorException);
+    });
+  });
   // Test for getusers()
   describe('getusers', () => {
     it('should return all users', async () => {
