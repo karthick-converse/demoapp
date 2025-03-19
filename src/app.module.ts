@@ -8,11 +8,11 @@ import { User } from './entites/user.entity';
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'localhost',
+      host: 'dpg-cvdbkit2ng1s73dsea60-a',
       port: 5432,
-      username: 'postgres',
-      password: 'Karthi123',
-      database: 'test',
+      username: 'demo_r0hc_user',
+      password: 'CjskokzEkBnnsU7V0PeFtl3HCED9Cb4L',
+      database: 'demo_r0hc',
       entities: [User],
       synchronize: true,
       
